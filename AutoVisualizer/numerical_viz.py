@@ -8,8 +8,25 @@ from scipy.stats import gaussian_kde
 
 # Box Plot Function
 def generate_box_plots(df: pd.DataFrame, x_col: str, y_columns: list, max_label_len: int = 10):
+    """
+    Generates box plots for multiple numerical columns grouped by a categorical column.
+
+    This function creates a series of Plotly box plots to visualize the distribution,
+    spread, and potential outliers of each numerical column across the values of a given 
+    categorical column. Long category labels are truncated for better readability.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+        x_col (str): Categorical column to group the box plots by.
+        y_columns (list): List of numerical columns to plot on the y-axis.
+        max_label_len (int, optional): Maximum character length for category labels on the x-axis (default is 10).
+
+    Returns:
+        list: A list of Plotly figure objects, each representing a box plot for a y_column grouped by x_col.
+    """
     plots = []
 
+    # Drop rows with missing values in relevant columns
     df = df[[x_col] + y_columns].dropna()
     
     # Truncate long category names
@@ -35,6 +52,20 @@ def generate_box_plots(df: pd.DataFrame, x_col: str, y_columns: list, max_label_
 # HeatMap Functions
 ## Heatmap of numerical (continuous) features
 def generate_numeric_correlation_heatmap(df: pd.DataFrame):
+    """
+    Generates a heatmap to visualize Pearson correlation between numerical features.
+
+    This function computes the correlation matrix for all numeric columns in the
+    DataFrame and returns a heatmap figure representing the strength and direction
+    of linear relationships between features.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+
+    Returns:
+        list: A list containing a single Plotly heatmap figure if enough numeric 
+              features exist; otherwise, returns an empty list.
+    """
     plots = []
     
     # Filter numeric columns
@@ -58,6 +89,17 @@ def generate_numeric_correlation_heatmap(df: pd.DataFrame):
 
 # Scatter Plot Function
 def generate_scatter_plots(df: pd.DataFrame, feature_pairs: list, color_by: str = None):
+    """
+    Generates scatter plots for given pairs of numerical features.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the features.
+        feature_pairs (list): List of tuples containing (x, y) column names for each plot.
+        color_by (str, optional): Column name to color points by. Must be in df. Defaults to None.
+
+    Returns:
+        list: A list of Plotly scatter plot figures, one for each feature pair.
+    """
     plots = []
 
     for x_col, y_col in feature_pairs:
@@ -69,6 +111,7 @@ def generate_scatter_plots(df: pd.DataFrame, feature_pairs: list, color_by: str 
             title=f"Scatter Plot: {x_col} vs {y_col}",
             labels={x_col: x_col, y_col: y_col}
         )
+        # Update title and legend if coloring is applied
         if color_by:
             fig.update_layout(title = f"Scatter Plot: {x_col} vs {y_col} color by {color_by}",showlegend=bool(color_by))
         
@@ -79,6 +122,17 @@ def generate_scatter_plots(df: pd.DataFrame, feature_pairs: list, color_by: str 
 
 # Histogram Function
 def generate_histograms(df: pd.DataFrame, numeric_columns: list, bins: int = 30):
+    """
+    Generates histogram and KDE plots for each specified numeric column.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing numeric features.
+        numeric_columns (list): List of column names to plot histograms for.
+        bins (int, optional): Number of bins to use in the histogram. Defaults to 30.
+
+    Returns:
+        list: A list of Plotly figures, each showing a histogram and KDE curve.
+    """
     plots = []
 
     for col in numeric_columns:
@@ -103,6 +157,7 @@ def generate_histograms(df: pd.DataFrame, numeric_columns: list, bins: int = 30)
             line=dict(color='red')
         )
 
+        # Combine into a single figure
         fig = go.Figure(data=[hist, kde_curve])
         fig.update_layout(
             title=f"Histogram + KDE for '{col}'",
@@ -119,14 +174,24 @@ def generate_histograms(df: pd.DataFrame, numeric_columns: list, bins: int = 30)
 # Line Plots Function
 def generate_line_plots(df: pd.DataFrame, date_component_cols: list, y_columns: list, freq: str = "M"):
     """
-    Generates line plots for each group of datetime component columns.
-    Groups like 'order_date_year', 'order_date_month', etc. are reconstructed into a datetime.
-    
-    freq options:
-    - 'D' : daily
-    - 'W' : weekly
-    - 'M' : monthly
-    - 'Y' : yearly
+    Generates line plots for given numerical columns based on reconstructed datetime columns.
+
+    This function identifies datetime-related components in the DataFrame (e.g., 'order_year', 'order_month', 'order_day'),
+    reconstructs them into actual datetime objects, and then plots the specified `y_columns` over time using the chosen frequency.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing date components and numerical data.
+        date_component_cols (list): List of column names representing datetime parts (e.g., 'order_date_year', 'order_date_month').
+        y_columns (list): List of numeric columns to be plotted against the date.
+        freq (str, optional): Resampling frequency for datetime aggregation.
+            Options:
+                'D' = daily
+                'W' = weekly
+                'M' = monthly (default)
+                'Y' = yearly
+
+    Returns:
+        list: A list of Plotly line plot figures for each (prefix, y_column) pair.
     """
     from collections import defaultdict
     plots = []

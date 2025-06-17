@@ -57,18 +57,61 @@ def check_dataset_cleanliness(df):
 
 
 # Function that will identify the task of the dataset
-def task_type(data_type):
-    task_type = ""
-    if data_type == 'object' or data_type == 'bool':
-        task_type = "Classification"           # Supervised-Classification task
-    elif data_type == 'None':
-        task_type = "Clustering"               # UnSupervised-Clustering task
-    else:
-        task_type = "Regression"               # Supervised-Regression task
-    return task_type
+def task_type(df: pd.DataFrame, target_col: str) -> str:
+    """
+    Determine the machine learning task type based on the target column.
+
+    Args:
+        df (pd.DataFrame): The input dataset.
+        target_col (str or None): The target column name, or None for unsupervised tasks.
+
+    Returns:
+        str: One of the following task types:
+            - "Classification" if the target is categorical.
+            - "Clustering" if the target is not provided.
+            - "Regression" if the target is numerical.
+            - "Unknown" if the type cannot be recognized.
+    """
+    # Handle unsupervised case (no target)
+    if target_col == "No Target":
+        return "Clustering"
+    
+    target_series = df[target_col]
+    dtype = target_series.dtype
+    n_unique = target_series.nunique()
+    
+    # Check for classification
+    if dtype == 'object' or dtype == 'bool' or (dtype == 'category'):
+        return "Classification"
+    
+    # Check for binary/multi-class classification represented as integers or floats
+    if dtype.kind in ['i', 'u', 'f']:  # Integer types
+        if n_unique <= 10:  # Arbitrary threshold for classification
+            return "Classification"
+        else:
+            return "Regression"
+    
+    # Numeric types default to regression
+    if dtype.kind in ['i', 'u', 'f']:
+        return "Regression"
+    
+    return "Unknown"
 
 # Function that will identify if an object feature is truly categorical or not
-def is_probably_categorical(series, threshold_unique=50, threshold_ratio=0.1):
+def is_probably_categorical(series: pd.Series, threshold_unique: int = 50, threshold_ratio: float = 0.1) -> bool:
+    """
+    Determines whether a given pandas Series is likely to be a categorical feature.
+
+    Args:
+        series (pd.Series): The input data column to analyze.
+        threshold_unique (int, optional (default=50)) : Maximum number of unique values for an object-type column to be considered categorical.
+        threshold_ratio (float, optional (default=0.1)) : Maximum ratio of unique values to total entries for object-type column to be treated as categorical.
+    
+    Returns:
+        bool: True if the series is likely categorical, False otherwise.
+    """
+
+    # Heuristic for object types (e.g., strings): avoid classifying high-cardinality fields as categorical
     if series.dtype == 'object':
         num_unique = series.nunique()
         unique_ratio = num_unique / len(series)
@@ -78,6 +121,7 @@ def is_probably_categorical(series, threshold_unique=50, threshold_ratio=0.1):
         else:
             return False  # high-cardinality non-categorical (like names)
     
+    # Explicit categorical or boolean data types are considered categorical
     elif pd.api.types.is_categorical_dtype(series):
         return True
     elif pd.api.types.is_bool_dtype(series):
@@ -86,17 +130,44 @@ def is_probably_categorical(series, threshold_unique=50, threshold_ratio=0.1):
     return False
 
 # Function that will identify if an numerical feature is discrete or not
-def is_discrete(series, max_unique=20):
+def is_discrete(series: pd.Series, max_unique: int = 20) -> bool:
+    """
+    Determine whether a numeric series should be considered discrete.
+
+    Args:
+        series (pd.Series): The input numeric data column to analyze.
+        max_unique (int, optional): Maximum number of unique values allowed 
+            to treat a column as discrete. Default is 20.
+
+    Returns:
+        bool: True if the series is likely discrete, False otherwise.
+    """
+    # Check if the series is of integer type
     if pd.api.types.is_integer_dtype(series):
         return series.nunique() <= max_unique
+    
     if pd.api.types.is_float_dtype(series):
         # If all values are whole numbers AND unique count is low → treat as discrete
         if series.dropna().apply(float.is_integer).all():
             return series.nunique() <= max_unique
+        
     return False
 
 # Function that will identify if an numerical feature is continuous or not
-def is_continuous(series, max_unique=20):
+def is_continuous(series: pd.Series, max_unique: int = 20) -> bool:
+    """
+    Determine whether a numeric series is continuous.
+
+    Args:
+        series (pd.Series): The input numeric data column to analyze.
+        max_unique (int, optional): Threshold for unique values. If a float-type column
+            contains only whole numbers and has fewer than this count, it is not considered continuous.
+            Default is 20.
+
+    Returns:
+        bool: True if the series is likely continuous, False otherwise.
+    """
+    # Only float types are considered potentially continuous
     if pd.api.types.is_float_dtype(series):
         # If it's float but looks like discrete, then not continuous
         all_whole_numbers = series.dropna().apply(float.is_integer).all()
@@ -106,7 +177,20 @@ def is_continuous(series, max_unique=20):
     return False
 
 # Function that will identify if an feature is date-time format and then extract the time-based components
-def parse_datetime_columns(df):
+def parse_datetime_columns(df: pd.DataFrame) -> tuple[pd.DataFrame, list, list]:
+    """
+    Detects and parses datetime columns in a DataFrame, and extracts useful 
+    date and/or time components into new columns.
+
+    Args:
+        df (pd.DataFrame): Input dataset.
+
+    Returns:
+        tuple:
+            - pd.DataFrame: Updated DataFrame with extracted datetime components.
+            - list: List of original columns identified as datetime.
+            - list: List of newly extracted datetime-related feature names.
+    """
     datetime_cols = []
     extracted_datetime = []
     today = pd.Timestamp.today()  # Just the date, no time
@@ -160,6 +244,7 @@ def parse_datetime_columns(df):
             df[f"{col}_hour"] = np.nan
             df[f"{col}_minute"] = np.nan
     
+    # Remove any columns that are now entirely NaN
     df = df.dropna(axis=1, how='all')
 
     return df, datetime_cols, extracted_datetime

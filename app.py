@@ -53,26 +53,18 @@ if uploaded_file is not None:
     st.dataframe(df, height=210)
     st.divider()
 
-    # Extract column names from the dataset + add "None" element if there's no target in the user dataset
+    # Extract column names from the dataset + add "No Target" element if there's no target in the user dataset
     feature_list = list(df.columns)
-    target_selector = [feature for feature in feature_list]
-    target_selector.insert(0, "No Target")
+    target_selector = ["No Target"] + feature_list
 
     with st.sidebar:
         # Ask the user to select target column from their dataset
         target_col = st.selectbox("Specify the target column in your dataset:", target_selector)
-        data_type = ""
-        if target_col != "No Target":
-            # Identify the data type of the target feature
-            data_type = df[target_col].dtype
-        else:
-            data_type = "None"
-
-    # Identify the task/type of dataset (i.e. classification/regression/clustering(if no target feature at all))
-    task = task_type(data_type)
-    with st.sidebar:
+        # Identify the task/type of dataset (i.e. classification/regression/clustering(if no target feature at all))
+        task = task_type(df, target_col)
+        # Display the task to user
         st.write(f"🔍 Task identified: **{task}**")
-    
+        
     # Identify the date-time columns (if any) and extract new time-based components from it
     # date_time_ls       --> List that will store date-time feature names
     # extracted_datetime --> List that will store extracted date-time feature names
