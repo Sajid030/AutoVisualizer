@@ -203,6 +203,7 @@ def generate_grouped_bar_plots(df: pd.DataFrame, x_columns: list, y_columns: lis
                 fig.update_traces(
                     hovertemplate=f"{x_col}=%{{customdata[0]}}<br>{hue_col}=%{{customdata[1]}}<br>Average {y_col}=%{{y:{hover_format}}}<extra></extra>",
                 )
+                fig.update_layout(showlegend=False, xaxis_title=x_col)
                 plots.append(fig)
 
     return plots
